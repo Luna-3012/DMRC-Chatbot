@@ -1,0 +1,10 @@
+embedding_model: "BAAI/bge-small-en-v1.5"
+
+classifier_path: "models/classifier.pkl"
+vectorizer_path: "models/vectorizer.pkl"
+vector_store_path: "models/vector_store.pkl"
+
+llm:
+  provider: "gemini"
+  model: "gemini-1.5-flash"
+  api_key_env: "GEMINI_API_KEY"
