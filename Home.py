@@ -14,8 +14,7 @@ from utils.intent_filter import is_dmrc_query
 from utils.config import load_config
 from utils.session_memory import session_memory
 from utils.metro_prompts import get_metro_prompt
-import google.generativeai as genai
-
+from google import genai  
 # Load environment variables
 load_dotenv()
 
@@ -66,18 +65,33 @@ if st.sidebar.button("👥 Change Avatar", key="change_avatar_btn"):
     else:
         st.error("Avatar page not found. Please ensure `pages/Avatar.py` exists.")
 
-# Initialize Gemini AI configuration
+# Initialize Gemini AI configuration and API settings
 try:
     config = load_config()
     api_key = os.getenv(config["llm"]["api_key_env"])
+    client = None
+    model_name = config["llm"]["model"]
     if api_key:
-        genai.configure(api_key=api_key)
-        llm = genai.GenerativeModel(model_name=config["llm"]["model"])
+        client = genai.Client(api_key=api_key)
         st.session_state.api_mode = True
     else:
         st.warning("⚠️ Gemini API key not found. Set GEMINI_API_KEY environment variable.")
 except Exception as e:
     st.error(f"❌ Configuration error: {e}")
+
+# API config
+API_ENABLED = False
+API_BASE_URL = None
+API_TIMEOUT = 8
+try:
+    api_cfg = config.get("api", {})
+    API_ENABLED = bool(api_cfg.get("enabled", False))
+    API_BASE_URL = api_cfg.get("base_url", "http://127.0.0.1:8000")
+    API_TIMEOUT = int(api_cfg.get("timeout_s", 8))
+except Exception:
+    API_ENABLED = False
+    API_BASE_URL = None
+    API_TIMEOUT = 8
 
 # Initialize session state for chat memory
 if "messages" not in st.session_state:
@@ -230,8 +244,35 @@ if prompt := st.chat_input("Ask me about Delhi Metro services..."):
                 response_data = {"response": "", "source": "", "confidence": 0.0}
                 top_k_context = []  
                 
-                # Intent classification
-                if config.get("use_intent_classifier", True):
+                # Try FastAPI first if enabled
+                used_api = False
+                if API_ENABLED and API_BASE_URL:
+                    try:
+                        api_payload = {
+                            "query": prompt,
+                            "session_id": st.session_state.session_id,
+                            "top_k": top_k,
+                            "threshold": threshold,
+                            "memory_enabled": memory_enabled,
+                        }
+                        r = requests.post(f"{API_BASE_URL}/chat", json=api_payload, timeout=API_TIMEOUT)
+                        if r.ok:
+                            api_resp = r.json()
+                            response_data = {
+                                "response": api_resp.get("response", ""),
+                                "source": api_resp.get("source", "dmrc_rag"),
+                                "confidence": api_resp.get("confidence", 0.8),
+                            }
+                            ctx = api_resp.get("context", [])
+                            top_k_context = [(c.get("question", ""), c.get("answer", "")) for c in ctx]
+                            used_api = True
+                        else:
+                            st.info("Backend API unavailable, using local pipeline.")
+                    except Exception:
+                        st.info("Backend API call failed, using local pipeline.")
+
+                # Intent classification (local pipeline) 
+                if not used_api and config.get("use_intent_classifier", True):
                     try:
                         is_dmrc = is_dmrc_query(prompt)
                         if not is_dmrc:
@@ -242,8 +283,8 @@ if prompt := st.chat_input("Ask me about Delhi Metro services..."):
                                 metro_prompt = get_metro_prompt(prompt, conversation_context)
                                 
                                 # Generate metro-themed response
-                                response = llm.generate_content(metro_prompt)
-                                response_text = response.text.strip()
+                                response = client.models.generate_content(model=model_name, contents=metro_prompt)
+                                response_text = getattr(response, "text", str(response))
                                 
                                 response_data = {
                                     "response": response_text,
@@ -281,9 +322,10 @@ if prompt := st.chat_input("Ask me about Delhi Metro services..."):
                                     )
                                 
                                 if st.session_state.api_mode:
-                                    response = llm.generate_content(final_prompt)
+                                    response = client.models.generate_content(model=model_name, contents=final_prompt)
+                                    text = getattr(response, "text", str(response))
                                     response_data = {
-                                        "response": response.text.strip(),
+                                        "response": text,
                                         "source": "dmrc_rag",
                                         "confidence": 0.8
                                     }
@@ -303,8 +345,8 @@ if prompt := st.chat_input("Ask me about Delhi Metro services..."):
                 # Display response
                 st.markdown(response_data["response"])
                 
-                # Update conversation memory 
-                if memory_enabled:
+                # Update conversation memory only when using local pipeline
+                if memory_enabled and not used_api:
                     session_memory.add_conversation(
                         session_id=st.session_state.session_id,
                         user_query=prompt,

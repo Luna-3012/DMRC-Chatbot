@@ -8,3 +8,8 @@ llm:
   provider: "gemini"
   model: "gemini-1.5-flash"
   api_key_env: "GEMINI_API_KEY"
+
+api:
+  base_url: "http://127.0.0.1:8000"
+  enabled: true
+  timeout_s: 8
