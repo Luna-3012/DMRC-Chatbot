@@ -1,8 +1,6 @@
-import re
 import joblib
 import os
 import logging
-from sklearn.feature_extraction.text import TfidfVectorizer
 from utils.config import load_config
 
 logger = logging.getLogger(__name__)
