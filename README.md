@@ -40,7 +40,7 @@ Watch the DMRC Chatbot in action: [Demo Video](https://drive.google.com/file/d/1
 ### Installation
 ```bash
 # Clone the repository
-git clone [https://github.com/Luna-3012/DMRC-Chatbot.git](https://github.com/Luna-3012/DMRC-Chatbot.git)
+git clone https://github.com/Luna-3012/DMRC-Chatbot.git
 cd DMRC-Assistant
 
 # Create and activate virtual environment
