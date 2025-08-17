@@ -38,21 +38,31 @@ Watch the DMRC Chatbot in action: [Demo Video](https://drive.google.com/file/d/1
 - Gemini API key
 
 ### Installation
-```bash
-# Clone the repository
-git clone https://github.com/Luna-3012/DMRC-Chatbot.git
 
-# Create and activate virtual environment
+1. Clone the repository:
+```bash
+git clone https://github.com/Luna-3012/DMRC-Chatbot.git
+cd dmrc-assistant
+```
+
+2. Create and activate virtual environment:
+```bash
 python -m venv dmrc-venv
 source dmrc-venv/bin/activate  # On Windows: dmrc-venv\Scripts\activate
+```
 
-# Install dependencies
+3. Install dependencies:
+```bash
 pip install -r requirements.txt
+```
 
-# Set your Gemini API key
-export GEMINI_API_KEY="your-api-key-here"  # On Windows: set GEMINI_API_KEY=your-api-key-here
+4. Set your Gemini API key in .env:
+```bash
+GEMINI_API_KEY=your-api-key-here
+```
 
-# Build the vector store
+5. Build the vector store
+```bash
 python scripts/embed_and_index.py
 ```
 
